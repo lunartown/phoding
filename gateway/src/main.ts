@@ -30,7 +30,7 @@ async function bootstrap() {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         return next();
       }
-      httpProxy.web(req, res, (err) => {
+      httpProxy.web(req, res, {}, (err) => {
         if (err) {
           try { res.statusCode = 502; res.end('Proxy Error'); } catch {}
         }
