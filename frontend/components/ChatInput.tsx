@@ -51,8 +51,14 @@ export default function ChatInput({
     setIsLoading(true);
 
     try {
-      // Use Gateway ngrok tunnel for API calls
-      const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3002';
+      // Resolve Gateway URL
+      // 1) Prefer build-time env NEXT_PUBLIC_GATEWAY_URL
+      // 2) Fallback: derive from current host with port 3002 (avoids localhost hardcoding)
+      const gatewayUrl =
+        process.env.NEXT_PUBLIC_GATEWAY_URL ||
+        (typeof window !== 'undefined'
+          ? `${window.location.protocol}//${window.location.hostname}:3002`
+          : '');
       const response = await fetch(`${gatewayUrl}/agent/ask`, {
         method: 'POST',
         headers: {
