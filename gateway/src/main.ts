@@ -1,6 +1,5 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createProxyServer } from 'http-proxy';
 
 async function bootstrap() {
@@ -15,29 +14,31 @@ async function bootstrap() {
     exposedHeaders: ['ngrok-skip-browser-warning'],
   });
 
-  // HTTP 프리뷰 경로를 전역 미들웨어로 Vite(dev server)로 프록시
+  // HTTP 프리뷰 경로 프록시: http-proxy를 직접 사용해서 API 경로는 확실히 제외
   const expressApp = app.getHttpAdapter().getInstance();
-  const catchAllFilter = (pathname: string) => {
-    if (
-      pathname.startsWith('/agent') ||
-      pathname.startsWith('/preview') ||
-      pathname.startsWith('/frontend')
-    ) {
-      return false;
+  const httpProxy = createProxyServer({ target: 'http://localhost:5173', changeOrigin: true });
+  expressApp.use((req: any, res: any, next: any) => {
+    try {
+      const url: string = (req.url as string) || '/';
+      if (
+        url.startsWith('/agent') ||
+        url.startsWith('/preview') ||
+        url.startsWith('/frontend')
+      ) {
+        return next();
+      }
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        return next();
+      }
+      httpProxy.web(req, res, (err) => {
+        if (err) {
+          try { res.statusCode = 502; res.end('Proxy Error'); } catch {}
+        }
+      });
+    } catch {
+      return next();
     }
-    return true;
-  };
-  // http-proxy-middleware v3 expects a single options object.
-  // Use the `filter` option instead of the old (context, options) signature.
-  expressApp.use(
-    createProxyMiddleware({
-      target: 'http://localhost:5173',
-      changeOrigin: true,
-      ws: true,
-      // Only proxy non-API/non-frontend routes to Vite
-      filter: catchAllFilter as any,
-    } as any),
-  );
+  });
 
   // Vite HMR WebSocket 업그레이드 프록시: 서버 upgrade 이벤트에 직접 연결
   const server = app.getHttpServer();
