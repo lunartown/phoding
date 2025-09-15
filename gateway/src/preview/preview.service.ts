@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { spawn, ChildProcess } from 'child_process';
+import * as http from 'http';
 import * as path from 'path';
 
 @Injectable()
@@ -18,7 +19,8 @@ export class PreviewService {
 
       // Start Vite dev server
       const workspacePath = path.join(process.cwd(), '..', 'workspace');
-      const viteProcess = spawn('npm', ['run', 'dev'], {
+      const viteArgs = ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(this.previewPort), '--strictPort'];
+      const viteProcess = spawn('npm', viteArgs, {
         cwd: workspacePath,
         shell: true,
         detached: false,
@@ -40,8 +42,14 @@ export class PreviewService {
         this.previewProcesses.delete(sessionId);
       });
 
-      // Wait a bit for the server to start
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Wait until Vite responds on the configured port (max ~20s)
+      const isReady = await this.waitForViteReady(20000);
+      if (!isReady) {
+        return {
+          status: 'error' as const,
+          error: 'Vite dev server did not become ready in time',
+        };
+      }
 
       return {
         status: 'starting' as const,
@@ -69,5 +77,29 @@ export class PreviewService {
       process.kill();
       this.previewProcesses.delete(sessionId);
     }
+  }
+
+  private async waitForViteReady(timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const ok = await new Promise<boolean>((resolve) => {
+        const req = http.request(
+          { method: 'HEAD', host: '127.0.0.1', port: this.previewPort, path: '/' },
+          (res) => {
+            try { res.resume(); } catch {}
+            resolve(true);
+          },
+        );
+        req.on('error', () => resolve(false));
+        req.setTimeout(1000, () => {
+          try { req.destroy(); } catch {}
+          resolve(false);
+        });
+        req.end();
+      });
+      if (ok) return true;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    return false;
   }
 }
