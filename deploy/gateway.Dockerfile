@@ -1,22 +1,18 @@
 FROM node:22-alpine AS base
 WORKDIR /app
 
-# Copy monorepo pieces needed by gateway and workspace preview
-COPY gateway/package*.json gateway/
-COPY workspace/package*.json workspace/
-
+# Show tool versions
 RUN corepack enable && npm -v && node -v
 
-# Install deps for gateway and workspace (workspace dev server is spawned by gateway)
-RUN cd gateway && npm ci && cd .. \
- && cd workspace && npm ci && cd ..
-
-# Build gateway
+# Install gateway dependencies, then build
+COPY gateway/package*.json gateway/
+RUN cd gateway && npm ci
 COPY gateway ./gateway
 RUN cd gateway && npm run build
 
-# Copy workspace sources (so gateway can spawn vite dev)
+# Copy workspace source and install deps AFTER copy so node_modules remain
 COPY workspace ./workspace
+RUN cd workspace && npm ci
 
 # Runtime image
 FROM node:22-alpine
@@ -35,4 +31,3 @@ ENV PORT=3002
 
 WORKDIR /app/gateway
 CMD ["npm", "run", "start:prod"]
-
