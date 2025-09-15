@@ -56,3 +56,6 @@ pids
 *.pid
 *.pid.lock
 
+
+# Deploy env files
+deploy/*.env
