@@ -27,11 +27,15 @@ async function bootstrap() {
     }
     return true;
   };
+  // http-proxy-middleware v3 expects a single options object.
+  // Use the `filter` option instead of the old (context, options) signature.
   expressApp.use(
-    createProxyMiddleware(catchAllFilter as any, {
+    createProxyMiddleware({
       target: 'http://localhost:5173',
       changeOrigin: true,
       ws: true,
+      // Only proxy non-API/non-frontend routes to Vite
+      filter: catchAllFilter as any,
     } as any),
   );
 
