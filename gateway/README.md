@@ -1,98 +1,41 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+## Gateway (NestJS)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+AI 에이전트 호출(Claude API) → JSON 작업을 `workspace`에 적용 → Vite 프리뷰를 관리/프록시하는 서버입니다.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+### 주요 책임
+- `POST /agent/ask`: Claude 호출 → JSON operations 파싱 → 파일 시스템 적용
+- `POST /preview/start`: Vite dev server(5173) 스폰 및 헬스체크
+- 프록시: 루트 경로를 Vite로 프록시(HTTP/WS, HMR 지원), `/agent`/`/preview`/`/frontend` 예외 처리
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+### 실행
+```
+npm install
+PORT=3002 npm run start:dev
 ```
 
-## Compile and run the project
+### 환경 변수
+- `ANTHROPIC_API_KEY` (필수)
+- `PORT` (기본 3000, 권장 3002 — 프론트엔드 기본 폴백과 일치)
+- `PUBLIC_GATEWAY_URL` (선택, 프리뷰 URL 구성에 사용)
+- `PUBLIC_VITE_URL` (선택, 별도 프리뷰 공개 URL이 있을 때)
 
-```bash
-# development
-$ npm run start
+### 엔드포인트
+- `POST /agent/ask`
+  - 요청: `{ sessionId: string, instruction: string, fileHints?: string[] }`
+  - 응답: `{ status: 'success'|'error', operations: JSONOperation[], logs: string[], error?: string }`
+  - JSONOperation: `create|update|delete|rename` (업데이트 시 전체 파일 내용 필요)
 
-# watch mode
-$ npm run start:dev
+- `POST /preview/start`
+  - Vite 서버 실행 및 `{ previewUrl, status }` 반환
 
-# production mode
-$ npm run start:prod
-```
+### 프록시 동작
+- HTTP: 루트(`GET/HEAD`) 요청을 `http://localhost:5173`로 프록시
+- WS: HMR 업그레이드(`/agent|/preview|/frontend` 제외)를 Vite로 프록시
 
-## Run tests
+### 오류/재시도
+- Claude 과부하/레이트리밋 시 지수 백오프 최대 3회 재시도
+- 응답이 JSON 텍스트 블록(```)을 포함하면 제거 후 파싱
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### 보안
+- MVP 단계: 인증 없음. `/agent/*` 노출 시 역프록시/헤더 검증 권장
+- `.env`는 Git ignore 대상(확인됨). 비밀키는 비밀관리/환경변수로 주입

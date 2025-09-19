@@ -25,7 +25,7 @@ Prepare env files
 cp gateway.env.example gateway.env
 cp frontend.env.example frontend.env
 # Edit domains and keys
-vim gateway.env      # set PUBLIC_GATEWAY_URL, ANTHROPIC_API_KEY
+vim gateway.env      # set PORT=3002, PUBLIC_GATEWAY_URL, ANTHROPIC_API_KEY
 vim frontend.env     # set NEXT_PUBLIC_GATEWAY_URL
 ```
 
@@ -54,4 +54,3 @@ Notes
 - Gateway spawns the Vite dev server inside its container; no extra container is needed for preview.
 - Security: protect `/agent/*` with an auth proxy or add a header check in gateway if exposing publicly.
 - Updates: pull latest repo and `docker compose up -d --build`.
-

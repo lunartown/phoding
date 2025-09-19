@@ -86,22 +86,22 @@ type JSONOperation =
 
 ## 🚀 현재 개발 상태
 
-### 완료된 작업
-- [ ] 프로젝트 문서 작성
-- [ ] 아키텍처 설계
+### 완료된 작업(내부 테스트 중)
+- [x] 프로젝트 문서 구조 수립 (루트/폴더별 README, 배포 가이드)
+- [x] 아키텍처 설계
 
-### Phase 1 (MVP) - 현재 진행 중
-- [ ] Frontend 기본 UI 구현
-  - [ ] 채팅 입력 컴포넌트
-  - [ ] Operations 로그 뷰어
-  - [ ] iframe 프리뷰 컨테이너
-- [ ] Gateway 서버 구현
-  - [ ] /agent/ask 엔드포인트
-  - [ ] JSON operations 파서 및 적용 로직
-  - [ ] Vite dev server 프로세스 관리
-- [ ] Workspace 템플릿 설정
-  - [ ] Vite + React + TS 기본 설정
-  - [ ] 샘플 컴포넌트 추가
+### Phase 1 (MVP)
+- [x] Frontend 기본 UI 구현
+  - [x] 채팅 입력 컴포넌트
+  - [x] Operations 로그 뷰어
+  - [x] iframe 프리뷰 컨테이너
+- [x] Gateway 서버 구현
+  - [x] /agent/ask 엔드포인트
+  - [x] JSON operations 파서 및 적용 로직
+  - [x] Vite dev server 프로세스 관리
+- [x] Workspace 템플릿 설정
+  - [x] Vite + React + TS 기본 설정
+  - [x] 샘플 컴포넌트 추가
 
 ### Phase 2 (계획)
 - 세션 데이터 영속화 (SQLite)
@@ -119,6 +119,11 @@ type JSONOperation =
 2. **파일 수정**: workspace 폴더 내에서만 가능
 3. **프리뷰**: 단일 Vite dev server 인스턴스 (MVP 단계)
 4. **보안**: MVP에서는 인증/권한 없음 (로컬 개발용)
+
+### 포트/환경 변수 규칙
+- 프론트엔드: 3001, 게이트웨이: 3002(권장), 프리뷰(Vite): 5173(외부 노출 금지)
+- `frontend`는 `NEXT_PUBLIC_GATEWAY_URL`이 없으면 `hostname:3002`로 폴백
+- `gateway`는 `.env`에서 `PORT=3002` 설정 권장(프론트 폴백과 일치)
 
 ## 🛠️ 개발 시 참고사항
 
