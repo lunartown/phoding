@@ -115,7 +115,7 @@ jobs:
         run: |
           gcloud compute ssh $GCP_VM_NAME \
             --zone=$GCP_VM_ZONE \
-            --command="cd /opt/phoding/deploy && \
+            --command="cd /srv/app/deploy && \
               docker compose -f docker-compose.prod.yml pull && \
               docker compose -f docker-compose.prod.yml up -d --remove-orphans && \
               docker image prune -af"

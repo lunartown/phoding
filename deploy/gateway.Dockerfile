@@ -4,9 +4,10 @@ WORKDIR /app
 # Show tool versions
 RUN corepack enable && npm -v && node -v
 
-# Install gateway dependencies, then build
+# Install gateway dependencies, generate Prisma client, then build
 COPY gateway/package*.json gateway/
-RUN cd gateway && npm ci
+COPY gateway/prisma ./gateway/prisma
+RUN cd gateway && npm ci && npx prisma generate
 COPY gateway ./gateway
 RUN cd gateway && npm run build
 
