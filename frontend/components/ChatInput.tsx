@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 import { Message, Operation } from '@/types/chat';
+import StreamingLogs from '@/components/StreamingLogs';
 
 interface ChatInputProps {
   sessionId: string;
@@ -320,6 +321,8 @@ export default function ChatInput({
           </div>
         )}
       </div>
+
+      <StreamingLogs sessionId={sessionId} gatewayUrl={gatewayUrl} />
 
       <form
         onSubmit={handleSubmit}

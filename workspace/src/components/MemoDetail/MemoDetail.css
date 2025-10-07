@@ -1,0 +1,118 @@
+.memo-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: white;
+}
+
+.memo-detail.color-yellow {
+  border-top: 4px solid #FFD54F;
+}
+
+.memo-detail.color-green {
+  border-top: 4px solid #81C784;
+}
+
+.memo-detail.color-blue {
+  border-top: 4px solid #64B5F6;
+}
+
+.memo-detail.color-pink {
+  border-top: 4px solid #F06292;
+}
+
+.memo-detail.color-purple {
+  border-top: 4px solid #BA68C8;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.detail-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-edit {
+  padding: 10px 20px;
+  background: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-edit:hover {
+  background: #1976D2;
+}
+
+.btn-delete {
+  padding: 10px 20px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-delete:hover {
+  background: #d32f2f;
+}
+
+.detail-meta {
+  display: flex;
+  gap: 30px;
+  padding: 15px 30px;
+  background: #f9f9f9;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 14px;
+}
+
+.meta-label {
+  color: #666;
+  margin-right: 8px;
+}
+
+.meta-value {
+  color: #333;
+  font-weight: 500;
+}
+
+.detail-content {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+}
+
+.content-text {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+}
+
+.no-content {
+  color: #999;
+  font-style: italic;
+}

@@ -1,0 +1,11 @@
+.memo-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.no-memos {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}

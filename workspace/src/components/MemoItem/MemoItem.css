@@ -1,0 +1,94 @@
+.memo-item {
+  padding: 15px;
+  margin-bottom: 10px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.memo-item:hover {
+  border-color: #4CAF50;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.memo-item.selected {
+  border-color: #4CAF50;
+  background: #f0f9f0;
+}
+
+.memo-item.color-yellow {
+  border-left: 4px solid #FFD54F;
+}
+
+.memo-item.color-green {
+  border-left: 4px solid #81C784;
+}
+
+.memo-item.color-blue {
+  border-left: 4px solid #64B5F6;
+}
+
+.memo-item.color-pink {
+  border-left: 4px solid #F06292;
+}
+
+.memo-item.color-purple {
+  border-left: 4px solid #BA68C8;
+}
+
+.memo-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.memo-item-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.memo-item:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  color: #f44336;
+}
+
+.memo-item-preview {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.memo-item-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.memo-item-date {
+  font-size: 12px;
+  color: #999;
+}
