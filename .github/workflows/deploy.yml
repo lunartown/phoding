@@ -1,0 +1,121 @@
+name: Deploy to GCP Compute Engine
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  GCP_PROJECT_ID: phoding
+  GCP_REGION: asia-northeast3
+  ARTIFACT_REGISTRY_REPO: phoding
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/package-lock.json
+            gateway/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # Lint frontend
+      # - name: Lint frontend
+      #   working-directory: frontend
+      #   run: npm run lint
+
+      - name: Install gateway dependencies
+        working-directory: gateway
+        run: npm ci
+
+      # Lint gateway
+      # - name: Lint gateway
+      #   working-directory: gateway
+      #   run: npm run lint
+
+      # Prisma 스키마 체크 (DATABASE_URL 필요하므로 스킵)
+      # - name: Check Prisma schema
+      #   working-directory: gateway
+      #   run: npx prisma validate
+
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+      - name: Build and push frontend image
+        run: |
+          docker build \
+            -f deploy/frontend.Dockerfile \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/frontend:${{ env.IMAGE_TAG }} \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/frontend:latest \
+            .
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/frontend:${{ env.IMAGE_TAG }}
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/frontend:latest
+
+      - name: Build and push gateway image
+        run: |
+          docker build \
+            -f deploy/gateway.Dockerfile \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/gateway:${{ env.IMAGE_TAG }} \
+            -t ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/gateway:latest \
+            .
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/gateway:${{ env.IMAGE_TAG }}
+          docker push ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/gateway:latest
+
+  deploy:
+    name: Deploy to VM
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Compute Engine
+        env:
+          GCP_VM_NAME: ${{ secrets.GCP_VM_NAME }}
+          GCP_VM_ZONE: ${{ secrets.GCP_VM_ZONE }}
+        run: |
+          gcloud compute ssh $GCP_VM_NAME \
+            --zone=$GCP_VM_ZONE \
+            --command="cd /opt/phoding/deploy && \
+              docker compose -f docker-compose.prod.yml pull && \
+              docker compose -f docker-compose.prod.yml up -d --remove-orphans && \
+              docker image prune -af"

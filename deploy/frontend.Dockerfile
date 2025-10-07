@@ -4,9 +4,9 @@ COPY frontend/package*.json frontend/
 RUN corepack enable && npm -v && node -v && cd frontend && npm ci
 
 COPY frontend ./frontend
-# Inject runtime gateway URL for Next build
-# If deploy/frontend.env exists, Next.js will read .env.production at build time
-COPY deploy/frontend.env frontend/.env.production
+# Create empty .env.production if not exists
+# In production, gateway URL is configured via deployment
+RUN touch frontend/.env.production
 RUN cd frontend && npm run build
 
 FROM node:22-alpine
