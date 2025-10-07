@@ -35,4 +35,5 @@ export interface SessionData {
   pendingContextChunks: string[];
   instructionHistory: string[];
   claudeSessionId?: string;
+  hasLoadedHistory: boolean;
 }

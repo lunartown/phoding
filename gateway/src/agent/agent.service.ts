@@ -40,7 +40,9 @@ Rules:
 5. Include proper imports and exports
 6. Respond ONLY with the JSON array, no explanations or markdown
 7. If any single file would exceed ~6000 characters, refactor into smaller modules or multiple operations while keeping each JSON entry self-contained
-8. Never split a single file's contents across multiple operations—each create/update must include the full file content`;
+8. Never split a single file's contents across multiple operations—each create/update must include the full file content
+
+If you absolutely must send a natural-language reply instead of JSON (for example, when you need more information), respond in Korean.`;
 
   constructor(
     private readonly configService: ConfigService,
@@ -77,6 +79,33 @@ Rules:
   ): Promise<AgentResponse> {
     try {
       const session = this.ensureSession(sessionId);
+
+      if (!session.hasLoadedHistory) {
+        if (session.instructionHistory.length === 0) {
+          try {
+            const recentLogs = await this.prisma.chatLog.findMany({
+              where: { sessionId },
+              orderBy: { createdAt: 'desc' },
+              take: this.instructionHistoryLimit,
+              select: {
+                instruction: true,
+              },
+            });
+
+            session.instructionHistory = recentLogs
+              .map((log) => log.instruction)
+              .filter((instruction): instruction is string => Boolean(instruction))
+              .reverse();
+          } catch (historyError) {
+            this.logger.error(
+              'Failed to load session history from database',
+              historyError,
+            );
+          }
+        }
+
+        session.hasLoadedHistory = true;
+      }
       const stagedContext = session.pendingContextChunks.join('\n\n');
       const recentInstructions = session.instructionHistory.slice(
         -this.instructionHistoryLimit,
@@ -354,8 +383,11 @@ Rules:
       session = {
         instructionHistory: [],
         pendingContextChunks: [],
+        hasLoadedHistory: false,
       };
       this.sessions.set(sessionId, session);
+    } else if (typeof session.hasLoadedHistory !== 'boolean') {
+      session.hasLoadedHistory = false;
     }
 
     return session;
