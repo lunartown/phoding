@@ -24,13 +24,8 @@ async function bootstrap() {
     origin: true, // Allow all origins for development
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Requested-With',
-      'ngrok-skip-browser-warning',
-    ],
-    exposedHeaders: ['ngrok-skip-browser-warning'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: [],
   });
 
   const port = process.env.PORT ?? 3000;

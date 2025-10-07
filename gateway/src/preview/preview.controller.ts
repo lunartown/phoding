@@ -47,9 +47,6 @@ export class PreviewController {
           ? externalPreview
           : baseUrl;
       const previewUrl = new URL('/', rawBase);
-      if (!externalPreview) {
-        previewUrl.searchParams.set('ngrok-skip-browser-warning', 'true');
-      }
       previewUrl.searchParams.set('_ts', Date.now().toString());
 
       return {

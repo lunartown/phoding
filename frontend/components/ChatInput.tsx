@@ -94,7 +94,6 @@ export default function ChatInput({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true',
         },
         body: JSON.stringify({
           sessionId,
@@ -180,13 +179,15 @@ export default function ChatInput({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true',
         },
         body: JSON.stringify({
           sessionId,
           instruction: input,
           fileHints: fileHints
-            ? fileHints.split(',').map((f) => f.trim())
+            ? fileHints
+                .split(',')
+                .map((f) => f.trim())
+                .filter((hint) => hint.length > 0)
             : undefined,
         }),
       });
@@ -223,7 +224,6 @@ export default function ChatInput({
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'ngrok-skip-browser-warning': 'true',
             },
             body: JSON.stringify({ sessionId }),
           });

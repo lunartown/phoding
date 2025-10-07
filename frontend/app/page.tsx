@@ -57,9 +57,6 @@ export default function Home() {
       try {
         const historyUrl = `${gatewayUrl}/agent/history/${sessionId}`;
         const response = await fetch(historyUrl, {
-          headers: {
-            'ngrok-skip-browser-warning': 'true',
-          },
           signal: abortController.signal,
         });
 
