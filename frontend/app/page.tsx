@@ -1,15 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-interface Operation {
-  type: 'create' | 'update' | 'delete' | 'rename';
-  path?: string;
-  oldPath?: string;
-  newPath?: string;
-  content?: string;
-  timestamp?: string;
-}
+import { Message, Operation } from '@/types/chat';
 import ChatInput from '@/components/ChatInput';
 import OperationsLog from '@/components/OperationsLog';
 import PreviewFrame from '@/components/PreviewFrame';
@@ -19,10 +11,137 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string>('');
   const [operations, setOperations] = useState<Operation[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [gatewayUrl, setGatewayUrl] = useState<string | null>(
+    process.env.NEXT_PUBLIC_GATEWAY_URL || null,
+  );
+  const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
 
   useEffect(() => {
-    setSessionId(Math.random().toString(36).substring(7));
+    const storedSessionId = localStorage.getItem('phoding-session-id');
+    if (storedSessionId) {
+      setSessionId(storedSessionId);
+    } else {
+      const newSessionId = Math.random().toString(36).substring(7);
+      localStorage.setItem('phoding-session-id', newSessionId);
+      setSessionId(newSessionId);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+    setHasLoadedHistory(false);
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (gatewayUrl) {
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const fallback = `${window.location.protocol}//${window.location.hostname}:3002`;
+      setGatewayUrl(fallback);
+    }
+  }, [gatewayUrl]);
+
+  useEffect(() => {
+    if (!sessionId || !gatewayUrl || hasLoadedHistory) {
+      return;
+    }
+
+    const abortController = new AbortController();
+
+    const loadHistory = async () => {
+      try {
+        const historyUrl = `${gatewayUrl}/agent/history/${sessionId}`;
+        const response = await fetch(historyUrl, {
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+          },
+          signal: abortController.signal,
+        });
+
+        if (!response.ok) {
+          console.warn(
+            '[Chat] Failed to load history',
+            response.status,
+            response.statusText,
+          );
+          return;
+        }
+
+        const data = await response.json();
+        if (data.status !== 'success' || !Array.isArray(data.history)) {
+          return;
+        }
+
+        if (data.history.length === 0) {
+          return;
+        }
+
+        const historyMessages: Message[] = [];
+
+        for (const log of data.history) {
+          historyMessages.push({
+            id: `${log.id}-user`,
+            type: 'user',
+            content: log.instruction,
+            timestamp: new Date(log.createdAt),
+          });
+
+          if (log.status === 'success') {
+            const operations = Array.isArray(log.operations)
+              ? log.operations
+              : [];
+
+            if (operations.length > 0) {
+              historyMessages.push({
+                id: `${log.id}-assistant`,
+                type: 'assistant',
+                content: `Operations executed: ${operations.length}`,
+                timestamp: new Date(log.createdAt),
+              });
+
+              if (log === data.history[data.history.length - 1]) {
+                setOperations(operations);
+              }
+            } else if (Array.isArray(log.logs) && log.logs.length > 0) {
+              historyMessages.push({
+                id: `${log.id}-assistant-message`,
+                type: 'assistant',
+                content: log.logs.join('\n\n'),
+                timestamp: new Date(log.createdAt),
+              });
+            }
+          } else {
+            historyMessages.push({
+              id: `${log.id}-error`,
+              type: 'error',
+              content: log.error || 'Unknown error',
+              timestamp: new Date(log.createdAt),
+            });
+          }
+        }
+
+        setMessages(historyMessages);
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        console.error('[Chat] Failed to fetch history:', error);
+      } finally {
+        setHasLoadedHistory(true);
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      abortController.abort();
+    };
+  }, [gatewayUrl, hasLoadedHistory, sessionId]);
 
   return (
     <div className="flex flex-col h-dvh bg-gray-50 dark:bg-gray-900">
@@ -77,6 +196,9 @@ export default function Home() {
             sessionId={sessionId}
             onOperationsUpdate={setOperations}
             onPreviewUrlUpdate={setPreviewUrl}
+            messages={messages}
+            setMessages={setMessages}
+            gatewayUrl={gatewayUrl}
           />
         )}
         {activeTab === 'chat' && !sessionId && (

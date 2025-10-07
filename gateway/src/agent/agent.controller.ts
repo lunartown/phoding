@@ -1,6 +1,6 @@
-import { Controller, Post, Body, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Logger, Get, Param } from '@nestjs/common';
 import { AgentService } from './agent.service';
-import { AgentResponse } from '../types';
+import { AgentResponse, ContextAppendResponse } from '../types';
 
 @Controller('agent')
 export class AgentController {
@@ -33,5 +33,34 @@ export class AgentController {
       };
       return errorResponse;
     }
+  }
+
+  @Get('history/:sessionId')
+  async getHistory(@Param('sessionId') sessionId: string) {
+    try {
+      const history = await this.agentService.getChatHistory(sessionId);
+      return {
+        sessionId,
+        status: 'success',
+        history,
+      };
+    } catch (error) {
+      this.logger.error('Failed to get chat history:', error);
+      return {
+        sessionId,
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        history: [],
+      };
+    }
+  }
+
+  @Post('context')
+  appendContext(@Body() body: { sessionId: string; content: string }) {
+    const result: ContextAppendResponse = this.agentService.appendContextChunk(
+      body.sessionId,
+      body.content ?? '',
+    );
+    return result;
   }
 }

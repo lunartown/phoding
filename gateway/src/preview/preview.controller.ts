@@ -37,12 +37,20 @@ export class PreviewController {
     }
 
     if (result.status === 'running' || result.status === 'starting') {
-      // 별도의 프리뷰 공개 URL이 지정된 경우(예: Vite에 대한 별도 ngrok)
       const externalPreview = this.configService.get<string>('PUBLIC_VITE_URL');
-      const urlBase = externalPreview && externalPreview.startsWith('http') ? externalPreview : baseUrl;
+      const rawBase =
+        externalPreview && externalPreview.startsWith('http')
+          ? externalPreview
+          : baseUrl;
+      const previewUrl = new URL('/', rawBase);
+      if (!externalPreview) {
+        previewUrl.searchParams.set('ngrok-skip-browser-warning', 'true');
+      }
+      previewUrl.searchParams.set('_ts', Date.now().toString());
+
       return {
         ...result,
-        previewUrl: `${urlBase.replace(/\/$/, '')}/?ngrok-skip-browser-warning=true`,
+        previewUrl: previewUrl.toString(),
       };
     }
 

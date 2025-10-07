@@ -4,10 +4,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AgentModule } from './agent/agent.module';
 import { PreviewModule } from './preview/preview.module';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
+    DatabaseModule,
     AgentModule,
     PreviewModule,
   ],
