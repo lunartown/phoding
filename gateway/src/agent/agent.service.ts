@@ -136,7 +136,7 @@ Generate JSON operations to fulfill this instruction.`;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const response = await this.anthropic.messages.create({
-          model: 'claude-3-5-sonnet-20241022',
+          model: 'claude-sonnet-4-5-20250929',
           max_tokens: 4096,
           messages: [
             {
