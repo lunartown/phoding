@@ -59,3 +59,7 @@ pids
 
 # Deploy env files
 deploy/*.env
+
+# Workspace preview app (ignore local changes, keep directory)
+workspace/*
+!workspace/.gitkeep
