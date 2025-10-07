@@ -136,7 +136,10 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
       try {
         listener(payload);
       } catch (listenerError) {
-        this.logger.warn('Log listener callback failed', listenerError as Error);
+        this.logger.warn(
+          'Log listener callback failed',
+          listenerError as Error,
+        );
       }
     }
 
@@ -186,13 +189,21 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
     }
 
     if (value && typeof value === 'object') {
-      if (visited.has(value as object)) {
+      if (visited.has(value)) {
         return null;
       }
-      visited.add(value as object);
+      visited.add(value);
 
       const record = value as Record<string, unknown>;
-      const prioritizedKeys = ['log', 'message', 'text', 'status', 'delta', 'detail', 'output'];
+      const prioritizedKeys = [
+        'log',
+        'message',
+        'text',
+        'status',
+        'delta',
+        'detail',
+        'output',
+      ];
       for (const key of prioritizedKeys) {
         if (key in record) {
           const extracted = this.extractTextFromUnknown(
@@ -207,7 +218,11 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
       }
 
       for (const entry of Object.values(record)) {
-        const extracted = this.extractTextFromUnknown(entry, depth + 1, visited);
+        const extracted = this.extractTextFromUnknown(
+          entry,
+          depth + 1,
+          visited,
+        );
         if (extracted) {
           return extracted;
         }
@@ -232,13 +247,16 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
         normalized === 'warn' ||
         normalized === 'error'
       ) {
-        return normalized as AgentLogEvent['level'];
+        return normalized;
       }
     }
     return fallback;
   }
 
-  private handleSdkMessageForLogs(sessionId: string, message: SDKMessage): void {
+  private handleSdkMessageForLogs(
+    sessionId: string,
+    message: SDKMessage,
+  ): void {
     try {
       if (!message || typeof message !== 'object') {
         return;
@@ -353,7 +371,9 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
 
             session.instructionHistory = recentLogs
               .map((log) => log.instruction)
-              .filter((instruction): instruction is string => Boolean(instruction))
+              .filter((instruction): instruction is string =>
+                Boolean(instruction),
+              )
               .reverse();
           } catch (historyError) {
             this.logger.error(
@@ -370,16 +390,17 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
         -this.instructionHistoryLimit,
       );
 
-      const { operations, claudeSessionId, message } = await this.callClaudeAgent({
-        sessionId,
-        instruction,
-        recentInstructions,
-        stagedContext,
-        fileHints,
-        existingSessionId: session.claudeSessionId,
-        onMessage: (sdkMessage) =>
-          this.handleSdkMessageForLogs(sessionId, sdkMessage),
-      });
+      const { operations, claudeSessionId, message } =
+        await this.callClaudeAgent({
+          sessionId,
+          instruction,
+          recentInstructions,
+          stagedContext,
+          fileHints,
+          existingSessionId: session.claudeSessionId,
+          onMessage: (sdkMessage) =>
+            this.handleSdkMessageForLogs(sessionId, sdkMessage),
+        });
 
       session.pendingContextChunks = [];
       session.claudeSessionId = claudeSessionId;

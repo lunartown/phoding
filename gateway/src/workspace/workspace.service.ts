@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { JSONOperation } from '../types';
@@ -9,6 +9,7 @@ import { JSONOperation } from '../types';
 @Injectable()
 export class WorkspaceService {
   private readonly workspacePath = path.join(process.cwd(), '..', 'workspace');
+  private readonly logger = new Logger(WorkspaceService.name);
 
   getWorkspacePath(): string {
     return this.workspacePath;
@@ -16,25 +17,37 @@ export class WorkspaceService {
 
   async readFile(relativePath: string): Promise<string | null> {
     try {
-      const filePath = path.join(this.workspacePath, relativePath);
+      const filePath = this.resolveWorkspacePath(relativePath);
       if (await fs.pathExists(filePath)) {
         return await fs.readFile(filePath, 'utf-8');
       }
       return null;
-    } catch {
+    } catch (error) {
+      this.logger.debug(
+        `Failed to read file context for "${relativePath}": ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
       return null;
     }
   }
 
   async buildFileContext(fileHints: string[]): Promise<string> {
-    let fileContext = '';
-    for (const hint of fileHints) {
+    const sections: string[] = [];
+
+    for (const rawHint of fileHints) {
+      const hint = rawHint?.trim();
+      if (!hint) {
+        continue;
+      }
+
       const content = await this.readFile(hint);
       if (content !== null) {
-        fileContext += `\n\n=== ${hint} ===\n${content}`;
+        sections.push(`=== ${hint} ===\n${content}`);
       }
     }
-    return fileContext;
+
+    return sections.join('\n\n');
   }
 
   async applyOperations(operations: JSONOperation[]): Promise<string[]> {
@@ -75,14 +88,36 @@ export class WorkspaceService {
     return logs;
   }
 
-  private async writeFile(relativePath: string, content: string): Promise<void> {
-    const filePath = path.join(this.workspacePath, relativePath);
+  private resolveWorkspacePath(relativePath: string): string {
+    const trimmedPath = relativePath?.trim();
+    if (!trimmedPath) {
+      throw new Error('Path must not be empty');
+    }
+    if (trimmedPath.includes('\0')) {
+      throw new Error('Path contains null bytes');
+    }
+
+    const resolvedPath = path.resolve(this.workspacePath, trimmedPath);
+    const relative = path.relative(this.workspacePath, resolvedPath);
+
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new Error(`Path escapes workspace root: ${trimmedPath}`);
+    }
+
+    return resolvedPath;
+  }
+
+  private async writeFile(
+    relativePath: string,
+    content: string,
+  ): Promise<void> {
+    const filePath = this.resolveWorkspacePath(relativePath);
     await fs.ensureDir(path.dirname(filePath));
-    await fs.writeFile(filePath, content);
+    await fs.writeFile(filePath, content, 'utf-8');
   }
 
   private async deleteFile(relativePath: string): Promise<void> {
-    const filePath = path.join(this.workspacePath, relativePath);
+    const filePath = this.resolveWorkspacePath(relativePath);
     await fs.remove(filePath);
   }
 
@@ -90,8 +125,9 @@ export class WorkspaceService {
     oldRelativePath: string,
     newRelativePath: string,
   ): Promise<void> {
-    const oldPath = path.join(this.workspacePath, oldRelativePath);
-    const newPath = path.join(this.workspacePath, newRelativePath);
+    const oldPath = this.resolveWorkspacePath(oldRelativePath);
+    const newPath = this.resolveWorkspacePath(newRelativePath);
+    await fs.ensureDir(path.dirname(newPath));
     await fs.move(oldPath, newPath);
   }
 }

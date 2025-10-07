@@ -19,11 +19,14 @@ export class AgentController {
   constructor(private readonly agentService: AgentService) {}
 
   @Post('ask')
-  async ask(@Body() body: {
-    sessionId: string;
-    instruction: string;
-    fileHints?: string[];
-  }) {
+  async ask(
+    @Body()
+    body: {
+      sessionId: string;
+      instruction: string;
+      fileHints?: string[];
+    },
+  ) {
     try {
       const result = await this.agentService.processInstruction(
         body.sessionId,

@@ -18,13 +18,21 @@ async function bootstrap() {
     origin: true, // Allow all origins for development
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'ngrok-skip-browser-warning'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'ngrok-skip-browser-warning',
+    ],
     exposedHeaders: ['ngrok-skip-browser-warning'],
   });
 
   // HTTP 프리뷰 경로 프록시: http-proxy를 직접 사용해서 API 경로는 확실히 제외
   const expressApp = app.getHttpAdapter().getInstance() as Application;
-  const httpProxy = createProxyServer({ target: 'http://localhost:5173', changeOrigin: true });
+  const httpProxy = createProxyServer({
+    target: 'http://localhost:5173',
+    changeOrigin: true,
+  });
   expressApp.use((req: Request, res: Response, next: NextFunction) => {
     try {
       const url: string = req.url || '/';
@@ -56,7 +64,11 @@ async function bootstrap() {
 
   // Vite HMR WebSocket 업그레이드 프록시: 서버 upgrade 이벤트에 직접 연결
   const server = app.getHttpServer() as Server;
-  const wsProxy = createProxyServer({ target: 'http://localhost:5173', ws: true, changeOrigin: true });
+  const wsProxy = createProxyServer({
+    target: 'http://localhost:5173',
+    ws: true,
+    changeOrigin: true,
+  });
   server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     try {
       const url = req.url || '/';

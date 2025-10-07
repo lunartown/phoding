@@ -47,7 +47,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
         exception instanceof Error ? exception.stack : undefined,
       );
     } else {
-      this.logger.warn(`HTTP ${status} Error: ${JSON.stringify(errorResponse)}`);
+      this.logger.warn(
+        `HTTP ${status} Error: ${JSON.stringify(errorResponse)}`,
+      );
     }
 
     response.status(status).json(errorResponse);

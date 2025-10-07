@@ -31,8 +31,12 @@ export class PreviewController {
     // PUBLIC_GATEWAY_URL 환경변수 기반으로 프리뷰 URL 생성
     let baseUrl = this.configService.get<string>('PUBLIC_GATEWAY_URL');
     if (!baseUrl) {
-      const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
-      const host = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'localhost:3000';
+      const proto =
+        (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
+      const host =
+        (req.headers['x-forwarded-host'] as string) ||
+        req.headers.host ||
+        'localhost:3000';
       baseUrl = `${proto}://${host}`;
     }
 
