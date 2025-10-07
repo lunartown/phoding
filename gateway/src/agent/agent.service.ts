@@ -8,7 +8,6 @@ import {
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import {
-  AgentLogEvent,
   AgentResponse,
   ContextAppendResponse,
   JSONOperation,
@@ -18,22 +17,11 @@ import { WorkspaceService } from '../workspace/workspace.service';
 import { PrismaService } from '../database/prisma.service';
 import { Prisma } from '@prisma/client';
 
-type SessionLogStream = {
-  listeners: Set<(event: AgentLogEvent) => void>;
-  buffer: AgentLogEvent[];
-};
-
 @Injectable()
 export class AgentService {
   private readonly logger = new Logger(AgentService.name);
   private readonly instructionHistoryLimit = 5;
   private readonly sessions = new Map<string, SessionData>();
-  private readonly logStreams = new Map<string, SessionLogStream>();
-  private readonly logBufferLimit = 50;
-  private readonly suppressedLogPatterns: RegExp[] = [
-    /현재\s*워크스페이스는\s*nestjs/i,
-    /workspace\s+is\s+a\s+nestjs\s+backend/i,
-  ];
   private readonly systemPrompt = `You are a coding assistant that generates JSON operations to modify a Vite + React + TypeScript workspace.
 
 IMPORTANT: You must respond ONLY with valid JSON in this exact format:
@@ -61,248 +49,6 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
     private readonly workspaceService: WorkspaceService,
     private readonly prisma: PrismaService,
   ) {}
-
-  registerLogListener(
-    sessionId: string,
-    listener: (event: AgentLogEvent) => void,
-  ): { unsubscribe: () => void; history: AgentLogEvent[] } {
-    const stream = this.ensureLogStream(sessionId);
-    stream.listeners.add(listener);
-
-    return {
-      unsubscribe: () => {
-        stream.listeners.delete(listener);
-      },
-      history: [...stream.buffer],
-    };
-  }
-
-  private ensureLogStream(sessionId: string): SessionLogStream {
-    let stream = this.logStreams.get(sessionId);
-    if (!stream) {
-      stream = {
-        listeners: new Set<(event: AgentLogEvent) => void>(),
-        buffer: [],
-      };
-      this.logStreams.set(sessionId, stream);
-    }
-    return stream;
-  }
-
-  private emitLogEvent(
-    sessionId: string,
-    event: Omit<AgentLogEvent, 'sessionId' | 'timestamp'> &
-      Partial<Pick<AgentLogEvent, 'timestamp'>>,
-  ): AgentLogEvent | null {
-    const stream = this.ensureLogStream(sessionId);
-    const normalizedMessage = this.normalizeLogMessage(event.message);
-    if (!normalizedMessage) {
-      return null;
-    }
-
-    if (
-      this.suppressedLogPatterns.some((pattern) =>
-        pattern.test(normalizedMessage),
-      )
-    ) {
-      return null;
-    }
-
-    const lastEntry = stream.buffer[stream.buffer.length - 1];
-    const level = event.level ?? 'info';
-    if (
-      lastEntry &&
-      lastEntry.message === normalizedMessage &&
-      lastEntry.level === level &&
-      lastEntry.source === event.source
-    ) {
-      return lastEntry;
-    }
-
-    const payload: AgentLogEvent = {
-      sessionId,
-      level,
-      message: normalizedMessage,
-      source: event.source,
-      timestamp: event.timestamp ?? new Date().toISOString(),
-    };
-
-    stream.buffer.push(payload);
-    if (stream.buffer.length > this.logBufferLimit) {
-      stream.buffer.splice(0, stream.buffer.length - this.logBufferLimit);
-    }
-
-    for (const listener of stream.listeners) {
-      try {
-        listener(payload);
-      } catch (listenerError) {
-        this.logger.warn('Log listener callback failed', listenerError as Error);
-      }
-    }
-
-    return payload;
-  }
-
-  private normalizeLogMessage(message: string): string {
-    if (!message) {
-      return '';
-    }
-    const compacted = message.replace(/\s+/g, ' ').trim();
-    if (!compacted) {
-      return '';
-    }
-    const maxLength = 280;
-    if (compacted.length <= maxLength) {
-      return compacted;
-    }
-    return `${compacted.slice(0, maxLength - 1)}…`;
-  }
-
-  private extractTextFromUnknown(
-    value: unknown,
-    depth = 0,
-    visited = new WeakSet<object>(),
-  ): string | null {
-    if (depth > 5) {
-      return null;
-    }
-
-    if (typeof value === 'string') {
-      return this.normalizeLogMessage(value);
-    }
-
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return this.normalizeLogMessage(String(value));
-    }
-
-    if (Array.isArray(value)) {
-      const parts = value
-        .map((item) => this.extractTextFromUnknown(item, depth + 1, visited))
-        .filter((item): item is string => Boolean(item));
-      if (parts.length === 0) {
-        return null;
-      }
-      return this.normalizeLogMessage(parts.join(' '));
-    }
-
-    if (value && typeof value === 'object') {
-      if (visited.has(value as object)) {
-        return null;
-      }
-      visited.add(value as object);
-
-      const record = value as Record<string, unknown>;
-      const prioritizedKeys = ['log', 'message', 'text', 'status', 'delta', 'detail', 'output'];
-      for (const key of prioritizedKeys) {
-        if (key in record) {
-          const extracted = this.extractTextFromUnknown(
-            record[key],
-            depth + 1,
-            visited,
-          );
-          if (extracted) {
-            return extracted;
-          }
-        }
-      }
-
-      for (const entry of Object.values(record)) {
-        const extracted = this.extractTextFromUnknown(entry, depth + 1, visited);
-        if (extracted) {
-          return extracted;
-        }
-      }
-    }
-
-    return null;
-  }
-
-  private resolveLogLevel(
-    rawLevel: unknown,
-    fallback: AgentLogEvent['level'] = 'debug',
-  ): AgentLogEvent['level'] {
-    if (typeof rawLevel === 'string') {
-      const normalized = rawLevel.toLowerCase();
-      if (normalized === 'warning') {
-        return 'warn';
-      }
-      if (
-        normalized === 'debug' ||
-        normalized === 'info' ||
-        normalized === 'warn' ||
-        normalized === 'error'
-      ) {
-        return normalized as AgentLogEvent['level'];
-      }
-    }
-    return fallback;
-  }
-
-  private handleSdkMessageForLogs(sessionId: string, message: SDKMessage): void {
-    try {
-      if (!message || typeof message !== 'object') {
-        return;
-      }
-
-      if (message.type === 'system') {
-        if ('subtype' in message && message.subtype === 'init') {
-          const model =
-            typeof message.model === 'string' ? message.model : 'unknown-model';
-          this.emitLogEvent(sessionId, {
-            level: 'info',
-            source: 'claude',
-            message: `Claude 세션 초기화 (${model})`,
-          });
-        } else if ('subtype' in message) {
-          this.emitLogEvent(sessionId, {
-            level: 'debug',
-            source: 'claude',
-            message: `시스템 이벤트: ${message.subtype}`,
-          });
-        }
-        return;
-      }
-
-      if (message.type === 'stream_event') {
-        const rawEvent = message.event as unknown;
-        const text = this.extractTextFromUnknown(rawEvent);
-        if (!text) {
-          return;
-        }
-        const eventRecord =
-          rawEvent && typeof rawEvent === 'object'
-            ? (rawEvent as Record<string, unknown>)
-            : undefined;
-        const inferredLevel = eventRecord
-          ? this.resolveLogLevel(eventRecord.level)
-          : 'debug';
-        this.emitLogEvent(sessionId, {
-          level: inferredLevel,
-          source: 'claude',
-          message: text,
-        });
-        return;
-      }
-
-      if (message.type === 'result') {
-        const level = message.subtype === 'success' ? 'info' : 'warn';
-        const resultMessage =
-          message.subtype === 'success'
-            ? 'Claude 응답 생성이 완료되었습니다.'
-            : `Claude 세션이 ${message.subtype.replace(/_/g, ' ')} 상태로 종료되었습니다.`;
-        this.emitLogEvent(sessionId, {
-          level,
-          source: 'claude',
-          message: resultMessage,
-        });
-      }
-    } catch (error) {
-      this.logger.warn(
-        'Failed to serialize SDK message for log stream',
-        error as Error,
-      );
-    }
-  }
 
   appendContextChunk(sessionId: string, chunk: string): ContextAppendResponse {
     const session = this.ensureSession(sessionId);
@@ -333,11 +79,6 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
   ): Promise<AgentResponse> {
     try {
       const session = this.ensureSession(sessionId);
-      this.emitLogEvent(sessionId, {
-        level: 'info',
-        source: 'system',
-        message: '새로운 지시를 처리합니다.',
-      });
 
       if (!session.hasLoadedHistory) {
         if (session.instructionHistory.length === 0) {
@@ -371,14 +112,11 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
       );
 
       const { operations, claudeSessionId, message } = await this.callClaudeAgent({
-        sessionId,
         instruction,
         recentInstructions,
         stagedContext,
         fileHints,
         existingSessionId: session.claudeSessionId,
-        onMessage: (sdkMessage) =>
-          this.handleSdkMessageForLogs(sessionId, sdkMessage),
       });
 
       session.pendingContextChunks = [];
@@ -390,27 +128,10 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
 
       let logs: string[] = [];
       if (operations.length > 0) {
-        this.emitLogEvent(sessionId, {
-          level: 'info',
-          source: 'system',
-          message: `${operations.length}개의 작업을 워크스페이스에 적용합니다.`,
-        });
         logs = await this.workspaceService.applyOperations(operations);
-        for (const entry of logs) {
-          this.emitLogEvent(sessionId, {
-            level: 'info',
-            source: 'workspace',
-            message: entry,
-          });
-        }
       }
 
       if (message && operations.length === 0) {
-        this.emitLogEvent(sessionId, {
-          level: 'info',
-          source: 'claude',
-          message,
-        });
         logs = [...logs, message];
       }
 
@@ -436,12 +157,6 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
 
-      this.emitLogEvent(sessionId, {
-        level: 'error',
-        source: 'system',
-        message: errorMessage,
-      });
-
       // 에러도 채팅 로그에 저장
       await this.saveChatLog({
         sessionId,
@@ -463,21 +178,17 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
   }
 
   private async callClaudeAgent({
-    sessionId,
     instruction,
     recentInstructions,
     stagedContext,
     fileHints,
     existingSessionId,
-    onMessage,
   }: {
-    sessionId: string;
     instruction: string;
     recentInstructions: string[];
     stagedContext: string;
     fileHints?: string[];
     existingSessionId?: string;
-    onMessage?: (message: SDKMessage) => void;
   }): Promise<{
     operations: JSONOperation[];
     claudeSessionId: string;
@@ -526,19 +237,12 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        this.emitLogEvent(sessionId, {
-          level: 'debug',
-          source: 'system',
-          message: `Claude API 호출을 시도합니다. (시도 ${attempt}/${maxRetries})`,
-        });
-
         const iterator = query({
           prompt: userPrompt,
           options: {
             resume: existingSessionId,
             systemPrompt: this.systemPrompt,
             settingSources: [],
-            cwd: this.workspaceService.getWorkspacePath(),
           },
         });
 
@@ -546,9 +250,6 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
         let latestSessionId = existingSessionId ?? null;
 
         for await (const message of iterator) {
-          if (onMessage) {
-            onMessage(message);
-          }
           latestSessionId = this.updateSessionId(latestSessionId, message);
 
           if (message.type === 'result') {
@@ -595,11 +296,6 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
           errorMessage.includes('too many requests');
 
         if (!isOverloadError || attempt === maxRetries) {
-          this.emitLogEvent(sessionId, {
-            level: 'error',
-            source: 'system',
-            message: `Claude API 호출이 실패했습니다: ${lastError.message}`,
-          });
           break;
         }
 
@@ -607,11 +303,6 @@ If you absolutely must send a natural-language reply instead of JSON (for exampl
         this.logger.warn(
           `Claude API 과부하 감지 (시도 ${attempt}/${maxRetries}). ${waitTime}ms 후 재시도...`,
         );
-        this.emitLogEvent(sessionId, {
-          level: 'warn',
-          source: 'system',
-          message: `Claude API 과부하 감지 (시도 ${attempt}/${maxRetries}). ${waitTime}ms 후 재시도합니다.`,
-        });
         await new Promise<void>((resolve) => setTimeout(resolve, waitTime));
       }
     }

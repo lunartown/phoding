@@ -1,16 +1,6 @@
-import {
-  Controller,
-  Post,
-  Body,
-  Logger,
-  Get,
-  Param,
-  Res,
-  Req,
-} from '@nestjs/common';
+import { Controller, Post, Body, Logger, Get, Param } from '@nestjs/common';
 import { AgentService } from './agent.service';
 import { AgentResponse, ContextAppendResponse } from '../types';
-import type { Request, Response } from 'express';
 
 @Controller('agent')
 export class AgentController {
@@ -43,47 +33,6 @@ export class AgentController {
       };
       return errorResponse;
     }
-  }
-
-  @Get('logs/stream/:sessionId')
-  streamLogs(
-    @Param('sessionId') sessionId: string,
-    @Res() res: Response,
-    @Req() req: Request,
-  ) {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders?.();
-
-    const { history, unsubscribe } = this.agentService.registerLogListener(
-      sessionId,
-      (event) => {
-        try {
-          res.write(`data: ${JSON.stringify(event)}\n\n`);
-        } catch (writeError) {
-          this.logger.warn('Failed to write SSE event', writeError as Error);
-        }
-      },
-    );
-
-    for (const event of history) {
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
-    }
-
-    const keepAlive = setInterval(() => {
-      res.write(': keep-alive\n\n');
-    }, 25000);
-
-    req.on('close', () => {
-      clearInterval(keepAlive);
-      unsubscribe();
-      try {
-        res.end();
-      } catch (endError) {
-        this.logger.warn('Failed to end SSE stream', endError as Error);
-      }
-    });
   }
 
   @Get('history/:sessionId')
