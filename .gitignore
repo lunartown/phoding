@@ -65,3 +65,6 @@ workspace/node_modules/
 workspace/dist/
 workspace/.env
 workspace/.env.local
+
+#claude
+.claude/
