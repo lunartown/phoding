@@ -1,0 +1,166 @@
+.fortune-card {
+  background: white;
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  max-width: 600px;
+  width: 100%;
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.fortune-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.fortune-header h2 {
+  color: #667eea;
+  font-size: 1.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.date {
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.fortune-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.fortune-section h3 {
+  color: #333;
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.message {
+  color: #555;
+  line-height: 1.6;
+  font-size: 1.1rem;
+  padding: 1rem;
+  background: #f8f9ff;
+  border-radius: 10px;
+  border-left: 4px solid #667eea;
+}
+
+.fortune-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem;
+  background: #f8f9ff;
+  border-radius: 10px;
+}
+
+.stat-label {
+  font-weight: 600;
+  color: #333;
+  min-width: 80px;
+}
+
+.stars {
+  display: flex;
+  gap: 0.2rem;
+  font-size: 1.3rem;
+}
+
+.star-filled {
+  color: #ffd700;
+}
+
+.star-empty {
+  color: #ddd;
+}
+
+.fortune-lucky {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.lucky-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border-radius: 10px;
+}
+
+.lucky-icon {
+  font-size: 2rem;
+}
+
+.lucky-label {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.3rem;
+}
+
+.lucky-value {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.advice {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1.5rem;
+  border-radius: 15px;
+}
+
+.advice h3 {
+  color: white;
+}
+
+.advice p {
+  color: white;
+  opacity: 0.95;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .fortune-card {
+    padding: 1.5rem;
+  }
+
+  .fortune-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .fortune-lucky {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}

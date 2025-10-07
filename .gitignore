@@ -60,6 +60,8 @@ pids
 # Deploy env files
 deploy/*.env
 
-# Workspace preview app (ignore local changes, keep directory)
-workspace/*
-!workspace/.gitkeep
+# Workspace preview app
+workspace/node_modules/
+workspace/dist/
+workspace/.env
+workspace/.env.local
