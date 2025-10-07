@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { WorkspaceService } from '../workspace/workspace.service';
 import { PrismaService } from '../database/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class AgentService {
@@ -420,7 +421,7 @@ Rules:
         data: {
           sessionId,
           instruction,
-          operations: operations as unknown as Record<string, unknown>[],
+          operations: operations as unknown as Prisma.InputJsonValue,
           logs,
           status,
           error,

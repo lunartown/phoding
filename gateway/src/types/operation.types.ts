@@ -20,9 +20,18 @@ export interface AgentResponse {
   error?: string;
 }
 
+export interface ContextAppendResponse {
+  sessionId: string;
+  status: 'success' | 'error';
+  pendingChunkCount: number;
+  message?: string;
+}
+
 /**
  * Minimal session data persisted per instruction sequence.
  */
 export interface SessionData {
-  lastInstructions: string[];
+  pendingContextChunks: string[];
+  instructionHistory: string[];
+  claudeSessionId?: string;
 }
