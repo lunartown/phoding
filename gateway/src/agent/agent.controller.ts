@@ -9,8 +9,10 @@ import {
   Req,
 } from '@nestjs/common';
 import { AgentService } from './agent.service';
-import { AgentResponse, ContextAppendResponse } from '../types';
+import { ContextAppendResponse } from '../types';
 import type { Request, Response } from 'express';
+import { AppendContextDto, AskAgentDto } from './dto';
+import { AgentProcessingException } from './exceptions/agent-processing.exception';
 
 @Controller('agent')
 export class AgentController {
@@ -19,14 +21,7 @@ export class AgentController {
   constructor(private readonly agentService: AgentService) {}
 
   @Post('ask')
-  async ask(
-    @Body()
-    body: {
-      sessionId: string;
-      instruction: string;
-      fileHints?: string[];
-    },
-  ) {
+  async ask(@Body() body: AskAgentDto) {
     try {
       const result = await this.agentService.processInstruction(
         body.sessionId,
@@ -36,15 +31,7 @@ export class AgentController {
       return result;
     } catch (error) {
       this.logger.error('Agent controller error:', error);
-      const errorResponse: AgentResponse = {
-        sessionId: body.sessionId,
-        status: 'error',
-        error:
-          error instanceof Error ? error.message : 'Unknown error occurred',
-        operations: [],
-        logs: [],
-      };
-      return errorResponse;
+      throw new AgentProcessingException(body.sessionId, error);
     }
   }
 
@@ -110,7 +97,7 @@ export class AgentController {
   }
 
   @Post('context')
-  appendContext(@Body() body: { sessionId: string; content: string }) {
+  appendContext(@Body() body: AppendContextDto) {
     const result: ContextAppendResponse = this.agentService.appendContextChunk(
       body.sessionId,
       body.content ?? '',

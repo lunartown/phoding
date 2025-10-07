@@ -55,6 +55,12 @@ export class WorkspaceService {
 
     for (const op of operations) {
       try {
+        if (!this.isValidOperation(op)) {
+          logs.push(
+            `Invalid operation payload discarded: ${JSON.stringify(op)}`,
+          );
+          continue;
+        }
         switch (op.type) {
           case 'create':
           case 'update':
@@ -88,6 +94,20 @@ export class WorkspaceService {
     return logs;
   }
 
+  private isValidOperation(operation: JSONOperation): boolean {
+    switch (operation.type) {
+      case 'create':
+      case 'update':
+        return Boolean(operation.path && operation.content !== undefined);
+      case 'delete':
+        return Boolean(operation.path);
+      case 'rename':
+        return Boolean(operation.oldPath && operation.newPath);
+      default:
+        return false;
+    }
+  }
+
   private resolveWorkspacePath(relativePath: string): string {
     const trimmedPath = relativePath?.trim();
     if (!trimmedPath) {
@@ -102,6 +122,20 @@ export class WorkspaceService {
 
     if (relative.startsWith('..') || path.isAbsolute(relative)) {
       throw new Error(`Path escapes workspace root: ${trimmedPath}`);
+    }
+
+    try {
+      const stat = fs.lstatSync(resolvedPath);
+      if (stat.isSymbolicLink()) {
+        throw new Error(
+          'Symbolic links are not allowed in workspace operations',
+        );
+      }
+    } catch (error) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError?.code && nodeError.code !== 'ENOENT') {
+        throw nodeError;
+      }
     }
 
     return resolvedPath;

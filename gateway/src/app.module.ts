@@ -5,9 +5,16 @@ import { AppService } from './app.service';
 import { AgentModule } from './agent/agent.module';
 import { PreviewModule } from './preview/preview.module';
 import { DatabaseModule } from './database/database.module';
+import { ProxyModule } from './proxy/proxy.module';
 
 @Module({
-  imports: [ConfigModule.forRoot(), DatabaseModule, AgentModule, PreviewModule],
+  imports: [
+    ConfigModule.forRoot(),
+    DatabaseModule,
+    AgentModule,
+    PreviewModule,
+    ProxyModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

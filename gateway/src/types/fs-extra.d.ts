@@ -13,6 +13,7 @@ declare module 'fs-extra' {
     options?: string | { encoding?: string },
   ): Promise<void>;
   export function ensureDir(path: PathLike): Promise<void>;
+  export function lstatSync(path: PathLike): import('fs').Stats;
   export function remove(path: PathLike): Promise<void>;
   export function move(
     src: PathLike,
