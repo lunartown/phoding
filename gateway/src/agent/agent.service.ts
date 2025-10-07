@@ -1,23 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import * as fs from 'fs-extra';
 import * as path from 'path';
-
-export interface JSONOperation {
-  type: 'create' | 'update' | 'delete' | 'rename';
-  path?: string;
-  content?: string;
-  oldPath?: string;
-  newPath?: string;
-}
+import { AgentResponse, JSONOperation, SessionData } from '../types';
+import { WorkspaceService } from '../workspace/workspace.service';
 
 @Injectable()
 export class AgentService {
-  private sessions = new Map<string, { lastInstructions: string[] }>();
+  private readonly logger = new Logger(AgentService.name);
+  private sessions = new Map<string, SessionData>();
   private anthropic: Anthropic;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private workspaceService: WorkspaceService,
+  ) {
     // Anthropic client will be initialized when needed
     // API key validation happens in callClaudeAgent method
   }
@@ -26,7 +24,7 @@ export class AgentService {
     sessionId: string,
     instruction: string,
     fileHints?: string[],
-  ) {
+  ): Promise<AgentResponse> {
     try {
       // Session management
       if (!this.sessions.has(sessionId)) {
@@ -46,7 +44,7 @@ export class AgentService {
       );
 
       // Apply operations to workspace
-      const logs = await this.applyOperations(operations);
+      const logs = await this.workspaceService.applyOperations(operations);
 
       return {
         sessionId,
@@ -86,22 +84,10 @@ export class AgentService {
     }
 
     // Build context
-    const workspacePath = path.join(process.cwd(), '..', 'workspace');
-    let fileContext = '';
-
-    if (fileHints && fileHints.length > 0) {
-      for (const hint of fileHints) {
-        try {
-          const filePath = path.join(workspacePath, hint);
-          if (await fs.pathExists(filePath)) {
-            const content = await fs.readFile(filePath, 'utf-8');
-            fileContext += `\n\n=== ${hint} ===\n${content}`;
-          }
-        } catch (e) {
-          // Ignore file read errors
-        }
-      }
-    }
+    const fileContext =
+      fileHints && fileHints.length > 0
+        ? await this.workspaceService.buildFileContext(fileHints)
+        : '';
 
     const systemPrompt = `You are a coding assistant that generates JSON operations to modify a Vite + React + TypeScript workspace.
 
@@ -119,7 +105,9 @@ Rules:
 3. Use proper React + TypeScript syntax
 4. Follow modern React patterns (hooks, functional components)
 5. Include proper imports and exports
-6. Respond ONLY with the JSON array, no explanations or markdown`;
+6. Respond ONLY with the JSON array, no explanations or markdown
+7. If any single file would exceed ~6000 characters, refactor into smaller modules or multiple operations while keeping each JSON entry self-contained
+8. Never split a single file's contents across multiple operations—each create/update must include the full file content`;
 
     const userPrompt = `Recent instructions: ${recentInstructions.slice(-3).join(', ')}
 
@@ -137,7 +125,7 @@ Generate JSON operations to fulfill this instruction.`;
       try {
         const response = await this.anthropic.messages.create({
           model: 'claude-sonnet-4-5-20250929',
-          max_tokens: 4096,
+          max_tokens: 8192,
           messages: [
             {
               role: 'user',
@@ -165,8 +153,31 @@ Generate JSON operations to fulfill this instruction.`;
           jsonText = lines.join('\n');
         }
 
-        const operations: JSONOperation[] = JSON.parse(jsonText);
-        return operations;
+        try {
+          const operations: JSONOperation[] = JSON.parse(jsonText);
+          return operations;
+        } catch (parseError) {
+          const maxLogLength = 4000;
+          const preview =
+            jsonText.length > maxLogLength
+              ? `${jsonText.slice(0, maxLogLength)}... [truncated]`
+              : jsonText;
+          this.logger.error('Claude JSON parse error:', parseError);
+          this.logger.error('Raw response preview:', preview);
+          const logDir = path.join(process.cwd(), 'logs', 'claude');
+          const timestamp = new Date()
+            .toISOString()
+            .replace(/[:.]/g, '-');
+          const logPath = path.join(logDir, `raw-${timestamp}.json`);
+          try {
+            await fs.ensureDir(logDir);
+            await fs.writeFile(logPath, jsonText, 'utf-8');
+            this.logger.error(`Full raw response saved to ${logPath}`);
+          } catch (logError) {
+            this.logger.error('Failed to persist raw response:', logError);
+          }
+          throw parseError;
+        }
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error');
@@ -185,8 +196,10 @@ Generate JSON operations to fulfill this instruction.`;
 
         // Exponential backoff: wait 1s, 2s, 4s...
         const waitTime = Math.pow(2, attempt - 1) * 1000;
-        console.log(`Claude API 과부하 감지 (시도 ${attempt}/${maxRetries}). ${waitTime}ms 후 재시도...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        this.logger.warn(
+          `Claude API 과부하 감지 (시도 ${attempt}/${maxRetries}). ${waitTime}ms 후 재시도...`,
+        );
+        await new Promise<void>((resolve) => setTimeout(resolve, waitTime));
       }
     }
 
@@ -197,49 +210,4 @@ Generate JSON operations to fulfill this instruction.`;
   }
 
 
-  private async applyOperations(
-    operations: JSONOperation[],
-  ): Promise<string[]> {
-    const logs: string[] = [];
-    const workspacePath = path.join(process.cwd(), '..', 'workspace');
-
-    for (const op of operations) {
-      try {
-        switch (op.type) {
-          case 'create':
-          case 'update':
-            if (op.path && op.content) {
-              const filePath = path.join(workspacePath, op.path);
-              await fs.ensureDir(path.dirname(filePath));
-              await fs.writeFile(filePath, op.content);
-              logs.push(`${op.type} ${op.path}`);
-            }
-            break;
-          case 'delete':
-            if (op.path) {
-              const filePath = path.join(workspacePath, op.path);
-              await fs.remove(filePath);
-              logs.push(`delete ${op.path}`);
-            }
-            break;
-          case 'rename':
-            if (op.oldPath && op.newPath) {
-              const oldPath = path.join(workspacePath, op.oldPath);
-              const newPath = path.join(workspacePath, op.newPath);
-              await fs.move(oldPath, newPath);
-              logs.push(`rename ${op.oldPath} -> ${op.newPath}`);
-            }
-            break;
-        }
-      } catch (error) {
-        logs.push(
-          `Error applying ${op.type}: ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`,
-        );
-      }
-    }
-
-    return logs;
-  }
 }

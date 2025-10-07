@@ -1,9 +1,17 @@
 import { NestFactory } from '@nestjs/core';
+import { Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { createProxyServer } from 'http-proxy';
+import type { Request, Response, NextFunction, Application } from 'express';
+import type { IncomingMessage, Server } from 'http';
+import type { Duplex } from 'stream';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   // Enable CORS for frontend (including mobile access)
   app.enableCors({
@@ -15,11 +23,11 @@ async function bootstrap() {
   });
 
   // HTTP 프리뷰 경로 프록시: http-proxy를 직접 사용해서 API 경로는 확실히 제외
-  const expressApp = app.getHttpAdapter().getInstance();
+  const expressApp = app.getHttpAdapter().getInstance() as Application;
   const httpProxy = createProxyServer({ target: 'http://localhost:5173', changeOrigin: true });
-  expressApp.use((req: any, res: any, next: any) => {
+  expressApp.use((req: Request, res: Response, next: NextFunction) => {
     try {
-      const url: string = (req.url as string) || '/';
+      const url: string = req.url || '/';
       if (
         url.startsWith('/agent') ||
         url.startsWith('/preview') ||
@@ -30,22 +38,28 @@ async function bootstrap() {
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         return next();
       }
-      httpProxy.web(req, res, {}, (err) => {
+      httpProxy.web(req, res, {}, (err: Error) => {
         if (err) {
-          try { res.statusCode = 502; res.end('Proxy Error'); } catch {}
+          try {
+            res.statusCode = 502;
+            res.end('Proxy Error');
+          } catch (endError) {
+            logger.error('Failed to send proxy error response:', endError);
+          }
         }
       });
-    } catch {
+    } catch (error) {
+      logger.error('Proxy middleware error:', error);
       return next();
     }
   });
 
   // Vite HMR WebSocket 업그레이드 프록시: 서버 upgrade 이벤트에 직접 연결
-  const server = app.getHttpServer();
+  const server = app.getHttpServer() as Server;
   const wsProxy = createProxyServer({ target: 'http://localhost:5173', ws: true, changeOrigin: true });
-  server.on('upgrade', (req: any, socket: any, head: any) => {
+  server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     try {
-      const url = (req.url as string) || '/';
+      const url = req.url || '/';
       if (
         url.startsWith('/agent') ||
         url.startsWith('/preview') ||
@@ -54,13 +68,18 @@ async function bootstrap() {
         return;
       }
       wsProxy.ws(req, socket, head);
-    } catch {
-      try { socket.destroy(); } catch {}
+    } catch (error) {
+      logger.error('WebSocket upgrade error:', error);
+      try {
+        socket.destroy();
+      } catch (destroyError) {
+        logger.error('Failed to destroy socket:', destroyError);
+      }
     }
   });
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0'); // Listen on all interfaces
-  console.log(`Gateway server running on http://0.0.0.0:${port}`);
+  logger.log(`Gateway server running on http://0.0.0.0:${port}`);
 }
-bootstrap();
+void bootstrap();

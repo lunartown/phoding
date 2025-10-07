@@ -2,7 +2,8 @@ import { Controller, Post, Body, Get, All, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PreviewService } from './preview.service';
 import type { Request, Response } from 'express';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createProxyMiddleware, type Options } from 'http-proxy-middleware';
+import { PreviewStartResponse } from '../types';
 
 @Controller('preview')
 export class PreviewController {
@@ -13,8 +14,7 @@ export class PreviewController {
       '^/preview/app': '', // /preview/app 경로를 제거하고 프록시
     },
     ws: true, // WebSocket 지원 (Vite HMR용)
-  } as any);
-
+  } as Options);
 
   constructor(
     private readonly previewService: PreviewService,
@@ -22,8 +22,11 @@ export class PreviewController {
   ) {}
 
   @Post('start')
-  async start(@Body() body: { sessionId: string }, @Req() req: Request) {
-    const result = await this.previewService.startPreview(body.sessionId);
+  async start(
+    @Body() _body: { sessionId: string },
+    @Req() req: Request,
+  ): Promise<PreviewStartResponse> {
+    const result = await this.previewService.startPreview();
 
     // PUBLIC_GATEWAY_URL 환경변수 기반으로 프리뷰 URL 생성
     let baseUrl = this.configService.get<string>('PUBLIC_GATEWAY_URL');
@@ -47,8 +50,8 @@ export class PreviewController {
   }
 
   @Post('stop')
-  async stop(@Body() body: { sessionId: string }) {
-    return this.previewService.stopPreview(body.sessionId);
+  stop() {
+    return this.previewService.stopPreview();
   }
 
   // 프록시는 전역 미들웨어로 이동 (main.ts)
@@ -63,11 +66,11 @@ export class PreviewController {
       '^/frontend': '',
     },
     ws: true,
-  } as any);
+  } as Options);
 
   @All('frontend/*')
   proxyToFrontend(@Req() req: Request, @Res() res: Response) {
-    this.frontendProxyMiddleware(req, res, (err) => {
+    void this.frontendProxyMiddleware(req, res, (err?: Error) => {
       if (err) {
         res.status(500).send('Frontend Proxy Error');
       }
@@ -76,7 +79,7 @@ export class PreviewController {
 
   @Get('frontend')
   proxyToFrontendRoot(@Req() req: Request, @Res() res: Response) {
-    this.frontendProxyMiddleware(req, res, (err) => {
+    void this.frontendProxyMiddleware(req, res, (err?: Error) => {
       if (err) {
         res.status(500).send('Frontend Proxy Error');
       }

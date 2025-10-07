@@ -1,8 +1,11 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Logger } from '@nestjs/common';
 import { AgentService } from './agent.service';
+import { AgentResponse } from '../types';
 
 @Controller('agent')
 export class AgentController {
+  private readonly logger = new Logger(AgentController.name);
+
   constructor(private readonly agentService: AgentService) {}
 
   @Post('ask')
@@ -19,14 +22,16 @@ export class AgentController {
       );
       return result;
     } catch (error) {
-      console.error('Agent controller error:', error);
-      return {
+      this.logger.error('Agent controller error:', error);
+      const errorResponse: AgentResponse = {
         sessionId: body.sessionId,
         status: 'error',
-        error: error.message || 'Unknown error occurred',
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
         operations: [],
-        logs: []
+        logs: [],
       };
+      return errorResponse;
     }
   }
 }
