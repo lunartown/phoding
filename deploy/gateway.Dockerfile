@@ -1,8 +1,11 @@
-FROM node:22-alpine AS base
+FROM node:22 AS base
 WORKDIR /app
 
 # Show tool versions
 RUN corepack enable && npm -v && node -v
+
+# Install system dependencies required by Prisma (OpenSSL 3.x)
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
 # Install gateway dependencies, generate Prisma client, then build
 COPY gateway/package*.json gateway/
@@ -16,9 +19,12 @@ COPY workspace ./workspace
 RUN cd workspace && npm install --production=false
 
 # Runtime image
-FROM node:22-alpine
+FROM node:22
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Install runtime dependencies (OpenSSL for Prisma)
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 
 # Copy built gateway and installed node_modules (gateway + workspace)
 COPY --from=base /app/gateway /app/gateway
