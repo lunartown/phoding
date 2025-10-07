@@ -13,7 +13,7 @@ RUN cd gateway && npm run build
 
 # Copy workspace source and install deps AFTER copy so node_modules remain
 COPY workspace ./workspace
-RUN cd workspace && npm ci
+RUN cd workspace && npm install --production=false
 
 # Runtime image
 FROM node:22-alpine

@@ -82,7 +82,7 @@ Rules:
         -this.instructionHistoryLimit,
       );
 
-      const { operations, claudeSessionId } = await this.callClaudeAgent({
+      const { operations, claudeSessionId, message } = await this.callClaudeAgent({
         instruction,
         recentInstructions,
         stagedContext,
@@ -97,7 +97,14 @@ Rules:
         session.instructionHistory.shift();
       }
 
-      const logs = await this.workspaceService.applyOperations(operations);
+      let logs: string[] = [];
+      if (operations.length > 0) {
+        logs = await this.workspaceService.applyOperations(operations);
+      }
+
+      if (message && operations.length === 0) {
+        logs = [...logs, message];
+      }
 
       // 채팅 로그 저장
       await this.saveChatLog({
@@ -113,6 +120,7 @@ Rules:
         status: 'success' as const,
         operations,
         logs,
+        message,
       };
     } catch (error) {
       this.logger.error('Agent processing error', error);
@@ -152,7 +160,11 @@ Rules:
     stagedContext: string;
     fileHints?: string[];
     existingSessionId?: string;
-  }): Promise<{ operations: JSONOperation[]; claudeSessionId: string }> {
+  }): Promise<{
+    operations: JSONOperation[];
+    claudeSessionId: string;
+    message?: string;
+  }> {
     const apiKey = this.configService.get<string>('ANTHROPIC_API_KEY');
 
     if (!apiKey || apiKey === 'your_api_key_here') {
@@ -239,8 +251,11 @@ Rules:
           };
         }
 
-        // Parsing failed even after fallbacks; error details already logged inside helper.
-        throw parsed.error;
+        return {
+          operations: [],
+          claudeSessionId: latestSessionId,
+          message: parsed.rawText,
+        };
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error');
 
@@ -276,6 +291,7 @@ Rules:
     | {
         success: false;
         error: Error;
+        rawText: string;
       }
   > {
     const jsonText = this.stripCodeFence(rawText.trim());
@@ -328,7 +344,7 @@ Rules:
       this.logger.error('Failed to persist raw response:', logError);
     }
 
-    return { success: false, error: parseError };
+    return { success: false, error: parseError, rawText };
   }
 
   private ensureSession(sessionId: string): SessionData {

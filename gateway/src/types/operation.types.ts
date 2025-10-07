@@ -18,6 +18,7 @@ export interface AgentResponse {
   operations: JSONOperation[];
   logs: string[];
   error?: string;
+  message?: string;
 }
 
 export interface ContextAppendResponse {
