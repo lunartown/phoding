@@ -63,6 +63,24 @@ export class PreviewController {
     return this.previewService.stopPreview();
   }
 
+  @All('app/*')
+  proxyToPreview(@Req() req: Request, @Res() res: Response) {
+    void this.proxyMiddleware(req, res, (err?: Error) => {
+      if (err) {
+        res.status(500).send('Preview Proxy Error');
+      }
+    });
+  }
+
+  @Get('app')
+  proxyToPreviewRoot(@Req() req: Request, @Res() res: Response) {
+    void this.proxyMiddleware(req, res, (err?: Error) => {
+      if (err) {
+        res.status(500).send('Preview Proxy Error');
+      }
+    });
+  }
+
   // 프록시는 전역 미들웨어로 이동 (main.ts)
 
   // 루트 경로 자원 프록시는 별도 컨트롤러에서 처리
