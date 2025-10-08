@@ -46,7 +46,7 @@ export class PreviewController {
         externalPreview && externalPreview.startsWith('http')
           ? externalPreview
           : baseUrl;
-      const previewUrl = new URL('/', rawBase);
+      const previewUrl = new URL('/preview/app', rawBase);
       previewUrl.searchParams.set('_ts', Date.now().toString());
 
       return {
