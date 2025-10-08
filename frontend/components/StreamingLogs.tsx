@@ -15,6 +15,7 @@ interface AgentLogEvent {
 interface StreamingLogsProps {
   sessionId: string;
   gatewayUrl: string | null;
+  isLoading?: boolean;
 }
 
 const LEVEL_INDICATORS: Record<AgentLogLevel, string> = {
@@ -48,9 +49,10 @@ const buildStreamUrl = (gatewayUrl: string | null, sessionId: string): string | 
   }
 };
 
-export default function StreamingLogs({ sessionId, gatewayUrl }: StreamingLogsProps) {
+export default function StreamingLogs({ sessionId, gatewayUrl, isLoading = true }: StreamingLogsProps) {
   const [logs, setLogs] = useState<AgentLogEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [displayCount, setDisplayCount] = useState(3);
 
   const streamUrl = useMemo(
     () => buildStreamUrl(gatewayUrl, sessionId),
@@ -64,6 +66,7 @@ export default function StreamingLogs({ sessionId, gatewayUrl }: StreamingLogsPr
 
     setLogs([]);
     setIsConnected(false);
+    setDisplayCount(3);
 
     if (!streamUrl) {
       return;
@@ -108,40 +111,45 @@ export default function StreamingLogs({ sessionId, gatewayUrl }: StreamingLogsPr
     };
   }, [streamUrl]);
 
-  const displayLogs = logs.slice(-3);
+  useEffect(() => {
+    if (!isLoading && displayCount > 0) {
+      const interval = setInterval(() => {
+        setDisplayCount((prev) => Math.max(0, prev - 1));
+      }, 300);
+      return () => clearInterval(interval);
+    } else if (isLoading && displayCount < 3) {
+      setDisplayCount(3);
+    }
+  }, [isLoading, displayCount]);
 
-  if (!streamUrl) {
+  const displayLogs = logs.slice(-3).slice(0, displayCount);
+
+  if (!streamUrl || displayCount === 0) {
     return null;
   }
 
   return (
-    <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-gray-100/70 dark:bg-gray-900/40 px-3 py-2">
-      <div className="space-y-1 text-[11px] leading-4 text-gray-600 dark:text-gray-400 font-mono">
-        {displayLogs.length === 0 ? (
-          <div className="flex items-center gap-2 text-gray-400 dark:text-gray-600">
-            <span className="h-1.5 w-1.5 rounded-full bg-gray-400/70 dark:bg-gray-600/60" />
-            <span className="truncate">
-              {isConnected ? '실시간 로그를 대기 중입니다…' : '실시간 로그 연결을 준비 중입니다…'}
-            </span>
-          </div>
-        ) : (
-          displayLogs.map((log) => {
-            const key = `${log.timestamp}-${log.message}`;
-            const sourceLabel = log.source
-              ? log.source.charAt(0).toUpperCase() + log.source.slice(1)
-              : 'System';
-            return (
-              <div key={key} className="flex items-center gap-2">
-                <span className={`h-1.5 w-1.5 rounded-full ${LEVEL_INDICATORS[log.level]}`} />
-                <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
-                  {sourceLabel}
-                </span>
-                <span className="flex-1 truncate">{log.message}</span>
-              </div>
-            );
-          })
-        )}
-      </div>
+    <div className="ml-3 mt-1 space-y-0.5">
+      {displayLogs.length === 0 ? (
+        <div className="text-xs text-gray-400 dark:text-gray-500 animate-pulse">
+          {isConnected ? 'Processing...' : 'Connecting...'}
+        </div>
+      ) : (
+        displayLogs.map((log, index) => {
+          const key = `${log.timestamp}-${log.message}`;
+          const isLatest = index === displayLogs.length - 1;
+          const opacity = index === 0 ? 'opacity-30' : index === 1 ? 'opacity-50' : 'opacity-100';
+
+          return (
+            <div
+              key={key}
+              className={`text-xs text-gray-500 dark:text-gray-400 truncate ${opacity} ${isLatest && isLoading ? 'animate-pulse' : ''}`}
+            >
+              {log.message}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }

@@ -30,9 +30,6 @@ export default function ChatInput({
 }: ChatInputProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [fileHints, setFileHints] = useState('');
-  const [contextInput, setContextInput] = useState('');
-  const [isContextSubmitting, setIsContextSubmitting] = useState(false);
   const gatewayWarningLogged = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -62,89 +59,6 @@ export default function ChatInput({
     },
     [gatewayUrl],
   );
-
-  const handleContextSubmit = async () => {
-    if (!contextInput.trim() || isContextSubmitting) {
-      return;
-    }
-
-    const contextUrl = buildGatewayUrl('/agent/context');
-    if (!contextUrl) {
-      if (!gatewayWarningLogged.current) {
-        console.warn('[ChatInput] Gateway URL is not ready, context skipped.');
-        gatewayWarningLogged.current = true;
-      }
-      pushMessage({
-        id: Math.random().toString(36),
-        type: 'error',
-        content: 'Gateway URL을 확인할 수 없습니다.',
-        timestamp: resolveTimestamp(),
-      });
-      return;
-    }
-
-    const contextMessage: Message = {
-      id: Math.random().toString(36),
-      type: 'context',
-      content: contextInput,
-      timestamp: resolveTimestamp(),
-    };
-
-    pushMessage(contextMessage);
-    setContextInput('');
-    setIsContextSubmitting(true);
-
-    try {
-      const response = await fetch(contextUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId,
-          content: contextMessage.content,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = (await response.json()) as {
-        status: 'success' | 'error';
-        pendingChunkCount: number;
-        message?: string;
-      };
-
-      if (data.status === 'success') {
-        pushMessage({
-          id: Math.random().toString(36),
-          type: 'system',
-          content: `컨텍스트가 저장되었습니다 (대기 중 ${data.pendingChunkCount}개).`,
-          timestamp: resolveTimestamp(),
-        });
-      } else {
-        throw new Error(data.message || '컨텍스트 저장에 실패했습니다.');
-      }
-    } catch (error) {
-      let errorContent = 'Failed to store context chunk';
-
-      if (error instanceof Error) {
-        errorContent = error.message;
-      } else if (typeof error === 'string') {
-        errorContent = error;
-      }
-
-      pushMessage({
-        id: Math.random().toString(36),
-        type: 'error',
-        content: errorContent,
-        timestamp: resolveTimestamp(),
-      });
-    } finally {
-      setIsContextSubmitting(false);
-    }
-  };
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -231,12 +145,6 @@ export default function ChatInput({
         body: JSON.stringify({
           sessionId,
           instruction: input,
-          fileHints: fileHints
-            ? fileHints
-                .split(',')
-                .map((f) => f.trim())
-                .filter((hint) => hint.length > 0)
-            : undefined,
         }),
       });
 
@@ -359,7 +267,7 @@ export default function ChatInput({
             </div>
           ))}
           {isLoading && (
-            <div className="flex justify-start">
+            <div className="flex flex-col items-start space-y-1">
               <div className="bg-gray-200 dark:bg-gray-700 rounded-lg px-3 py-2">
                 <div className="flex space-x-2">
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" />
@@ -367,7 +275,11 @@ export default function ChatInput({
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200" />
                 </div>
               </div>
+              <StreamingLogs sessionId={sessionId} gatewayUrl={gatewayUrl} isLoading={isLoading} />
             </div>
+          )}
+          {!isLoading && (
+            <StreamingLogs sessionId={sessionId} gatewayUrl={gatewayUrl} isLoading={isLoading} />
           )}
           <div ref={messagesEndRef} />
         </div>
@@ -394,56 +306,26 @@ export default function ChatInput({
         )}
       </div>
 
-      <StreamingLogs sessionId={sessionId} gatewayUrl={gatewayUrl} />
-
       <form
         onSubmit={handleSubmit}
         className="border-t border-gray-200 dark:border-gray-700 p-3 flex-shrink-0"
       >
-        <div className="space-y-2">
-          <div className="space-y-1">
-            <textarea
-              value={contextInput}
-              onChange={(e) => setContextInput(e.target.value)}
-              placeholder="컨텍스트를 추가하려면 입력 후 저장하세요 (멀티라인 가능)"
-              rows={3}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleContextSubmit}
-                disabled={isContextSubmitting || !contextInput.trim()}
-                className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              >
-                {isContextSubmitting ? 'Saving...' : 'Save Context'}
-              </button>
-            </div>
-          </div>
+        <div className="flex space-x-2">
           <input
             type="text"
-            value={fileHints}
-            onChange={(e) => setFileHints(e.target.value)}
-            placeholder="File hints (optional)"
-            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Enter instruction..."
+            disabled={isLoading}
+            className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           />
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Enter instruction..."
-              disabled={isLoading}
-              className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              Send
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim()}
+            className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          >
+            Send
+          </button>
         </div>
       </form>
     </div>
