@@ -47,13 +47,28 @@ export default function Home() {
   }, [sessionId]);
 
   useEffect(() => {
-    if (gatewayUrl) {
+    if (typeof window === 'undefined') {
       return;
     }
 
-    if (typeof window !== 'undefined') {
-      const fallback = `${window.location.protocol}//${window.location.hostname}:3002`;
+    const { protocol, hostname, origin } = window.location;
+    const fallback =
+      protocol === 'https:'
+        ? origin
+        : `${protocol}//${hostname}:3002`;
+
+    if (!gatewayUrl) {
       setGatewayUrl(fallback);
+      return;
+    }
+
+    const isLocalGateway = gatewayUrl.includes('localhost') || gatewayUrl.includes('127.0.0.1');
+    const isProtocolMismatch = protocol === 'https:' && gatewayUrl.startsWith('http://');
+
+    if ((isLocalGateway && !origin.includes('localhost')) || isProtocolMismatch) {
+      if (gatewayUrl !== fallback) {
+        setGatewayUrl(fallback);
+      }
     }
   }, [gatewayUrl]);
 
