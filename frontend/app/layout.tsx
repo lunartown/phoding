@@ -17,8 +17,11 @@ export const metadata: Metadata = {
   description:
     "모바일 환경에서 AI 에이전트와 대화하며 코드를 수정하고 즉시 프리뷰를 확인할 수 있는 실험용 인터페이스입니다.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: ["/favicon.svg", "/favicon.ico"],
     apple: "/favicon.svg",
   },
 };
