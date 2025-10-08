@@ -30,6 +30,8 @@ export class PreviewService {
         '--port',
         String(this.previewPort),
         '--strictPort',
+        '--base',
+        '/preview/app/',
       ];
       const viteProcess = spawn('npm', viteArgs, {
         cwd: workspacePath,
