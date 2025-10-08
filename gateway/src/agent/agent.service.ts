@@ -54,6 +54,14 @@ Rules:
 7. If any single file would exceed ~6000 characters, refactor into smaller modules or multiple operations while keeping each JSON entry self-contained
 8. Never split a single file's contents across multiple operations—each create/update must include the full file content
 
+UI/UX Design Principles (CRITICAL):
+- This project targets MOBILE APP environment
+- Design all UI components for mobile screen sizes (375px~428px width)
+- Use touch-optimized element sizes (minimum 44x44px for interactive elements)
+- Design with vertical scrolling in mind
+- Consider mobile gestures (swipe, tap, etc.)
+- Apply Mobile-First approach rather than responsive design
+
 If you absolutely must send a natural-language reply instead of JSON (for example, when you need more information), respond in Korean.`;
 
   constructor(
