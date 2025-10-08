@@ -1,26 +1,256 @@
-#root {
-  max-width: 1280px;
+.app {
+  width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 0;
+}
+
+.header {
   text-align: center;
+  padding: 1.5rem 0;
+  border-bottom: 2px solid #646cff;
+  margin-bottom: 1rem;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.header h1 {
+  margin: 0;
+  font-size: 2rem;
 }
 
-.card {
-  padding: 2em;
+.container {
+  display: flex;
+  gap: 1rem;
+  height: calc(100vh - 150px);
 }
 
-.read-the-docs {
+.sidebar {
+  width: 320px;
+  border-right: 1px solid #333;
+  padding-right: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.new-note-btn {
+  width: 100%;
+  padding: 0.8rem;
+  font-size: 1rem;
+  font-weight: 600;
+  background-color: #646cff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: background-color 0.3s;
+}
+
+.new-note-btn:hover {
+  background-color: #535bf2;
+}
+
+.notes-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.empty-message {
+  text-align: center;
   color: #888;
+  margin-top: 2rem;
+}
+
+.note-item {
+  padding: 1rem;
+  border: 1px solid #333;
+  border-radius: 8px;
+  margin-bottom: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.note-item:hover {
+  border-color: #646cff;
+  background-color: rgba(100, 108, 255, 0.05);
+}
+
+.note-item.active {
+  border-color: #646cff;
+  background-color: rgba(100, 108, 255, 0.1);
+}
+
+.note-item h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.note-item p {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #aaa;
+  line-height: 1.4;
+}
+
+.note-item small {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.3rem;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.delete-btn:hover {
+  opacity: 1;
+}
+
+.editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-left: 1rem;
+}
+
+.title-input {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  border: none;
+  border-bottom: 2px solid #333;
+  background-color: transparent;
+  color: inherit;
+  margin-bottom: 1rem;
+  outline: none;
+}
+
+.title-input:focus {
+  border-bottom-color: #646cff;
+}
+
+.content-input {
+  flex: 1;
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background-color: transparent;
+  color: inherit;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  margin-bottom: 1rem;
+}
+
+.content-input:focus {
+  border-color: #646cff;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.save-btn,
+.cancel-btn {
+  padding: 0.6rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-btn {
+  background-color: #646cff;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #535bf2;
+}
+
+.cancel-btn {
+  background-color: #333;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background-color: #444;
+}
+
+.empty-editor {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-editor p {
+  color: #888;
+  font-size: 1.2rem;
+}
+
+@media (prefers-color-scheme: light) {
+  .sidebar {
+    border-right-color: #ddd;
+  }
+
+  .note-item {
+    border-color: #ddd;
+  }
+
+  .note-item:hover {
+    background-color: rgba(100, 108, 255, 0.05);
+  }
+
+  .note-item.active {
+    background-color: rgba(100, 108, 255, 0.1);
+  }
+
+  .note-item h3 {
+    color: #213547;
+  }
+
+  .note-item p {
+    color: #555;
+  }
+
+  .note-item small {
+    color: #999;
+  }
+
+  .title-input,
+  .content-input {
+    border-color: #ddd;
+  }
+
+  .title-input:focus,
+  .content-input:focus {
+    border-color: #646cff;
+  }
+
+  .cancel-btn {
+    background-color: #ddd;
+    color: #213547;
+  }
+
+  .cancel-btn:hover {
+    background-color: #ccc;
+  }
 }
