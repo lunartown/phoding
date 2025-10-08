@@ -120,6 +120,11 @@ jobs:
           gcloud compute ssh $GCP_VM_NAME \
             --zone=$GCP_VM_ZONE \
             --command="cd /srv/app/deploy && \
+              docker system prune -af || true && \
+              docker builder prune -af || true && \
+              rm -rf ~/.npm/_cacache || true && \
               docker compose -f docker-compose.prod.yml pull && \
               docker compose -f docker-compose.prod.yml up -d --remove-orphans && \
-              docker image prune -af"
+              docker image prune -af || true && \
+              docker builder prune -af || true && \
+              rm -rf ~/.npm/_cacache || true"
