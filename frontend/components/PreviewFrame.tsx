@@ -20,28 +20,12 @@ export default function PreviewFrame({ url }: PreviewFrameProps) {
 
   return (
     <div className="h-full bg-white dark:bg-gray-900">
-      <div className="h-full flex flex-col">
-        <div className="bg-gray-100 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-2">
-            <div className="flex space-x-1">
-              <div className="w-3 h-3 rounded-full bg-red-500" />
-              <div className="w-3 h-3 rounded-full bg-yellow-500" />
-              <div className="w-3 h-3 rounded-full bg-green-500" />
-            </div>
-            <div className="flex-1 text-center">
-              <span className="text-xs text-gray-600 dark:text-gray-400 font-mono">
-                {url}
-              </span>
-            </div>
-          </div>
-        </div>
-        <iframe
-          src={url}
-          className="flex-1 w-full border-0"
-          title="Preview"
-          sandbox="allow-scripts allow-same-origin"
-        />
-      </div>
+      <iframe
+        src={url}
+        className="h-full w-full border-0"
+        title="Preview"
+        sandbox="allow-same-origin allow-scripts"
+      />
     </div>
   );
 }
