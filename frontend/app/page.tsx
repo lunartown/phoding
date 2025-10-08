@@ -77,6 +77,17 @@ export default function Home() {
       return;
     }
 
+    if (typeof window !== 'undefined') {
+      const isHttpsOrigin = window.location.protocol === 'https:';
+      const isLocalGateway =
+        gatewayUrl.includes('localhost') || gatewayUrl.includes('127.0.0.1');
+      const isProtocolMismatch = gatewayUrl.startsWith('http://');
+
+      if (!isLocalGateway && isHttpsOrigin && isProtocolMismatch) {
+        return;
+      }
+    }
+
     const abortController = new AbortController();
 
     const loadHistory = async () => {
