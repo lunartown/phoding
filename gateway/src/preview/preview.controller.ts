@@ -10,9 +10,6 @@ export class PreviewController {
   private proxyMiddleware = createProxyMiddleware({
     target: 'http://localhost:5173',
     changeOrigin: true,
-    pathRewrite: {
-      '^/preview/app': '', // /preview/app 경로를 제거하고 프록시
-    },
     ws: true, // WebSocket 지원 (Vite HMR용)
   } as Options);
 
