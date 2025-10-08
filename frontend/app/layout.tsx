@@ -1,6 +1,6 @@
-import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
-import './globals.css';
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,13 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Phoding | 모바일 AI 페어 개발',
+  title: "Phoding | 모바일 AI 페어 개발",
   description:
-    '모바일 환경에서 AI 에이전트와 대화하며 코드를 수정하고 즉시 프리뷰를 확인할 수 있는 실험용 인터페이스입니다.',
+    "모바일 환경에서 AI 에이전트와 대화하며 코드를 수정하고 즉시 프리뷰를 확인할 수 있는 실험용 인터페이스입니다.",
   icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
   },
 };
 
