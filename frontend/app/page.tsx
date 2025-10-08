@@ -6,6 +6,16 @@ import ChatInput from '@/components/ChatInput';
 import OperationsLog from '@/components/OperationsLog';
 import PreviewFrame from '@/components/PreviewFrame';
 
+const generateSessionId = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2, 10);
+};
+
+const isValidSessionId = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim().length > 0;
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'chat' | 'logs' | 'preview'>('chat');
   const [sessionId, setSessionId] = useState<string>('');
@@ -19,13 +29,14 @@ export default function Home() {
 
   useEffect(() => {
     const storedSessionId = localStorage.getItem('phoding-session-id');
-    if (storedSessionId) {
+    if (isValidSessionId(storedSessionId)) {
       setSessionId(storedSessionId);
-    } else {
-      const newSessionId = Math.random().toString(36).substring(7);
-      localStorage.setItem('phoding-session-id', newSessionId);
-      setSessionId(newSessionId);
+      return;
     }
+
+    const newSessionId = generateSessionId();
+    localStorage.setItem('phoding-session-id', newSessionId);
+    setSessionId(newSessionId);
   }, []);
 
   useEffect(() => {
