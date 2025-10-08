@@ -4,6 +4,7 @@ import {
   Dispatch,
   SetStateAction,
   useCallback,
+  useEffect,
   useRef,
   useState,
 } from 'react';
@@ -33,6 +34,10 @@ export default function ChatInput({
   const [contextInput, setContextInput] = useState('');
   const [isContextSubmitting, setIsContextSubmitting] = useState(false);
   const gatewayWarningLogged = useRef(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const prevMessagesLengthRef = useRef(0);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
   const pushMessage = useCallback(
     (message: Message) => {
@@ -139,6 +144,49 @@ export default function ChatInput({
     } finally {
       setIsContextSubmitting(false);
     }
+  };
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const handleScroll = () => {
+      const scrollThreshold = 100;
+      const isNearBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight < scrollThreshold;
+      setShowScrollButton(!isNearBottom);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    handleScroll();
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!scrollContainerRef.current || !messagesEndRef.current) {
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    const scrollThreshold = 100;
+    const isNearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight < scrollThreshold;
+
+    const messagesLengthChanged = messages.length !== prevMessagesLengthRef.current;
+    prevMessagesLengthRef.current = messages.length;
+
+    if (isNearBottom || messagesLengthChanged) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isLoading]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -279,46 +327,70 @@ export default function ChatInput({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${
-              message.type === 'user' || message.type === 'context'
-                ? 'justify-end'
-                : 'justify-start'
-            }`}
-          >
+      <div className="flex-1 relative border-b border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div ref={scrollContainerRef} className="h-full overflow-y-auto p-3 space-y-3">
+          {messages.map((message) => (
             <div
-              className={`max-w-[85%] rounded-lg px-3 py-2 ${
-                message.type === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : message.type === 'assistant'
-                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
-                  : message.type === 'context'
-                  ? 'bg-indigo-500 text-white'
-                  : message.type === 'system'
-                  ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
-                  : 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100'
+              key={message.id}
+              className={`flex ${
+                message.type === 'user' || message.type === 'context'
+                  ? 'justify-end'
+                  : 'justify-start'
               }`}
             >
-              <p className="text-sm">{message.content}</p>
-              <p className="text-xs opacity-70 mt-1">
-                {message.timestamp.toLocaleTimeString()}
-              </p>
-            </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-200 dark:bg-gray-700 rounded-lg px-3 py-2">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100" />
-                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200" />
+              <div
+                className={`max-w-[85%] rounded-lg px-3 py-2 ${
+                  message.type === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : message.type === 'assistant'
+                    ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
+                    : message.type === 'context'
+                    ? 'bg-indigo-500 text-white'
+                    : message.type === 'system'
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                    : 'bg-red-100 dark:bg-red-900 text-red-900 dark:text-red-100'
+                }`}
+              >
+                <p className="text-sm">{message.content}</p>
+                <p className="text-xs opacity-70 mt-1">
+                  {message.timestamp.toLocaleTimeString()}
+                </p>
               </div>
             </div>
-          </div>
+          ))}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-gray-200 dark:bg-gray-700 rounded-lg px-3 py-2">
+                <div className="flex space-x-2">
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-100" />
+                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-200" />
+                </div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {showScrollButton && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-gray-500/80 dark:bg-gray-600/80 text-white rounded-full p-1.5 shadow-md hover:bg-gray-600/90 dark:hover:bg-gray-500/90 transition-colors z-10"
+            aria-label="Scroll to bottom"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
         )}
       </div>
 
